@@ -134,6 +134,50 @@ train_features = train.apply(extract_features, axis=1)
 # Display sample features
 print(train_features.head())
 
+class PromptRecoveryDataset(Dataset):
+    def __init__(self, df, tokenizer=None, max_length=512, is_train=True):
+        self.df = df
+        self.tokenizer = tokenizer
+        self.max_length = max_length
+        self.is_train = is_train
+        
+    def __len__(self):
+        return len(self.df)
+    
+    def __getitem__(self, idx):
+        row = self.df.iloc[idx]
+        
+        # Format input as concatenation of original and rewritten text
+        input_text = f"Original: {row['original_text']} Rewritten: {row['rewritten_text']}"
+        
+        # Tokenize input
+        inputs = self.tokenizer(
+            input_text,
+            max_length=self.max_length,
+            padding="max_length",
+            truncation=True,
+            return_tensors="pt"
+        )
+        
+        item = {
+            'input_ids': inputs['input_ids'].squeeze(),
+            'attention_mask': inputs['attention_mask'].squeeze(),
+        }
+        
+        # For training data, also tokenize prompts
+        if self.is_train:
+            target_text = row['rewrite_prompt']
+            targets = self.tokenizer(
+                target_text,
+                max_length=self.max_length,
+                padding="max_length",
+                truncation=True,
+                return_tensors="pt"
+            )
+            
+            item['labels'] = targets['input_ids'].squeeze()
+            
+        return item
 
 
 

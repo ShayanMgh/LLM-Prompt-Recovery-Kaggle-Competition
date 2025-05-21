@@ -99,6 +99,41 @@ try:
 except Exception as e:
     print(f"Error occurred: {str(e)}")
 
+def extract_features(row):
+    """Extract features from original and rewritten text"""
+    original = row['original_text']
+    rewritten = row['rewritten_text']
+    
+    features = {}
+    
+    # Length features
+    features['original_length'] = len(original)
+    features['rewritten_length'] = len(rewritten)
+    features['length_ratio'] = features['rewritten_length'] / max(1, features['original_length'])
+    
+    # Style features
+    features['original_caps_ratio'] = sum(1 for c in original if c.isupper()) / max(1, len(original))
+    features['rewritten_caps_ratio'] = sum(1 for c in rewritten if c.isupper()) / max(1, len(rewritten))
+    
+    # Check for specific transformations
+    features['has_verse'] = 'verse' in rewritten.lower()
+    features['has_chorus'] = 'chorus' in rewritten.lower()
+    features['has_rhyme'] = False  # Would need more complex analysis
+    features['is_bullet_points'] = rewritten.count('•') > 0 or rewritten.count('-') > 3
+    features['is_numbered_list'] = bool(re.search(r'\d+\.\s', rewritten))
+    
+    # Vocabulary shift
+    common_words = set(original.lower().split()).intersection(set(rewritten.lower().split()))
+    features['common_words_ratio'] = len(common_words) / max(1, len(set(original.lower().split())))
+    
+    return pd.Series(features)
+
+# Extract features
+train_features = train.apply(extract_features, axis=1)
+
+# Display sample features
+print(train_features.head())
+
 
 
 

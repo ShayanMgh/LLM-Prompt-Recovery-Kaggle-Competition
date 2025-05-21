@@ -25,3 +25,82 @@ print("\nTest columns:", test.columns.tolist())
 print("\nTrain sample:")
 print(train.head(2))
 
+def analyze_examples(df):
+    """Analyze patterns in the examples"""
+    
+    print(f"Number of examples: {len(df)}")
+    
+    # Check if rewrite_prompt column exists
+    if 'rewrite_prompt' not in df.columns:
+        print("\nError: 'rewrite_prompt' column not found in the DataFrame")
+        print("Available columns:", df.columns.tolist())
+        return
+    
+    # Check if there are common patterns in the rewrite prompts
+    prompt_counts = df['rewrite_prompt'].value_counts()
+    print(f"\nNumber of unique rewrite prompts: {len(prompt_counts)}")
+    print("\nTop 5 most common rewrite prompts:")
+    print(prompt_counts.head(min(5, len(prompt_counts))))
+    
+    # Analyze prompt structure
+    print("\nSample prompt analysis:")
+    # Sample size will be the minimum of 5 and the total number of rows
+    sample_size = min(5, len(df))
+    
+    for i, prompt in enumerate(df['rewrite_prompt'].sample(n=sample_size).tolist()):
+        print(f"\nPrompt {i+1}: {prompt}")
+        
+        # Check if prompt starts with action verb
+        first_word = prompt.split()[0].lower()
+        print(f"First word: {first_word}")
+        
+        # Check if it has quotes
+        has_quotes = '"""' in prompt or '"' in prompt
+        print(f"Contains quotes: {has_quotes}")
+        
+        # Check length
+        print(f"Length: {len(prompt)} characters, {len(prompt.split())} words")
+
+# Let's also add some basic data validation before analysis
+def validate_and_analyze_data(df):
+    """Validate the data structure and perform analysis"""
+    print("Data Validation:")
+    print("-" * 50)
+    print(f"Total rows: {len(df)}")
+    print(f"Columns present: {df.columns.tolist()}")
+    
+    # Check for required columns
+    required_columns = ['id', 'original_text', 'rewrite_prompt', 'rewritten_text']
+    missing_columns = [col for col in required_columns if col not in df.columns]
+    
+    if missing_columns:
+        print("\nWarning: Missing required columns:", missing_columns)
+        print("Please ensure your data has the correct structure")
+        return False
+    
+    # Check for null values
+    null_counts = df.isnull().sum()
+    if null_counts.any():
+        print("\nWarning: Found null values:")
+        print(null_counts[null_counts > 0])
+    
+    print("\nBeginning Analysis:")
+    print("-" * 50)
+    analyze_examples(df)
+    return True
+
+try:
+    # Load the data
+    train = pd.read_csv('llm-prompt-recovery/train.csv')
+    
+    # Validate and analyze
+    validate_and_analyze_data(train)
+    
+except Exception as e:
+    print(f"Error occurred: {str(e)}")
+
+
+
+
+
+

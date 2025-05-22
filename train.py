@@ -10,6 +10,7 @@ from transformers import T5Tokenizer, T5ForConditionalGeneration, Seq2SeqTrainin
 import difflib
 import re
 from tqdm.auto import tqdm
+from sklearn.model_selection import train_test_split
 
 # Load the data
 train = pd.read_csv('llm-prompt-recovery/train.csv')
@@ -178,6 +179,59 @@ class PromptRecoveryDataset(Dataset):
             item['labels'] = targets['input_ids'].squeeze()
             
         return item
+
+def train_prompt_recovery_model(train_df, val_df=None):
+    # Initialize tokenizer and model
+    model_name = "t5-large"  # Larger model for better performance
+    tokenizer = T5Tokenizer.from_pretrained(model_name)
+    model = T5ForConditionalGeneration.from_pretrained(model_name)
+    
+    # Create datasets
+    train_dataset = PromptRecoveryDataset(train_df, tokenizer, is_train=True)
+    
+    # Validation dataset if provided
+    val_dataset = None
+    if val_df is not None:
+        val_dataset = PromptRecoveryDataset(val_df, tokenizer, is_train=True)
+    
+    # Define training arguments
+    training_args = Seq2SeqTrainingArguments(
+        output_dir="./prompt_recovery_results",
+        evaluation_strategy="epoch" if val_dataset else "no",
+        learning_rate=2e-5,
+        per_device_train_batch_size=4,
+        per_device_eval_batch_size=4,
+        weight_decay=0.01,
+        save_total_limit=3,
+        num_train_epochs=5,
+        predict_with_generate=True,
+        fp16=True,  # Use mixed precision if you have a GPU
+        gradient_accumulation_steps=4,
+        load_best_model_at_end=True if val_dataset else False,
+    )
+    
+    # Create trainer
+    trainer = Seq2SeqTrainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=val_dataset,
+    )
+    
+    # Train the model
+    trainer.train()
+    
+    # Save model and tokenizer
+    model.save_pretrained("./prompt_recovery_model")
+    tokenizer.save_pretrained("./prompt_recovery_tokenizer")
+    
+    return model, tokenizer
+
+# Split data for training and validation
+train_df, val_df = train_test_split(train, test_size=0.1, random_state=42)
+
+# Train model
+model, tokenizer = train_prompt_recovery_model(train_df, val_df)
 
 
 
